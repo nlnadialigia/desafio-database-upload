@@ -3,15 +3,15 @@ import {
   CreateDateColumn,
   Entity,
   JoinColumn,
-  ManyToMany,
-  PrimaryColumn,
+  ManyToOne,
+  PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
 import Category from './Category';
 
 @Entity('transactions')
 class Transaction {
-  @PrimaryColumn('uuid')
+  @PrimaryGeneratedColumn('uuid')
   id: string;
 
   @Column()
@@ -24,9 +24,9 @@ class Transaction {
   value: number;
 
   @Column()
-  category_id: string;
+  category_id: string
 
-  @ManyToMany(() => Category)
+  @ManyToOne(() => Category)
   @JoinColumn({ name: 'category_id' })
   category: Category;
 
