@@ -1,51 +1,87 @@
-import { getCustomRepository } from 'typeorm';
+import csvParse from 'csv-parse';
+import fs from 'fs';
+import { getRepository, In, getCustomRepository } from 'typeorm';
+import Category from '../models/Category';
 import Transaction from '../models/Transaction';
-import fs from 'fs'
-import cvsParse from 'csv-parse'
-import transactionsRouter from '../routes/transactions.routes';
+import TransactionsRepository from '../repositories/TransactionsRepository';
 
+interface TransactionsCVS {
+  title: string,
+  type: 'income' | 'outcome';
+  value: number;
+  category: string;
+}
 
 class ImportTransactionsService {
   async execute(filePath: string): Promise<Transaction[]> {
     //CRIAÇÃO DA STREAM DE LEITURA
-    const readCSVStream = fs.createReadStream(filePath)
+    const readStream = fs.createReadStream(filePath);
 
     //DEFINIÇÃO DO QUE SERÁ LIDO
-    const parseStream = cvsParse({
+    const parsersStream = csvParse({
       from_line: 2,
       ltrim: true,
-      rtrim: true
-    })
+    });
 
     //ARMAZENAMENTO DO RESULTADO
-    const parseCSV = readCSVStream.pipe(parseStream)
-
-    console.log(parseCSV);
-
+    const pipeStream = readStream.pipe(parsersStream);
 
     // LEITURA DO ARQUIVO
-    const importTransactions = getCustomRepository(Transaction)
+    const categories: string[] = [];
+    const transactions: TransactionsCVS[] = [];
 
-    const transactions:Transaction[] = []
+    pipeStream.on('data', async line => {
+      const [title, type, value, category] = line;
+      if (!title || !type || !value || !category) return;
+      categories.push(category);
+      transactions.push({ title, type, value, category });
+    });
 
-    parseCSV.on('data', line => {
-      const [title, type, value, category] = line
+    await new Promise(resolve => pipeStream.on('end', resolve));
 
-      if (!title || !type || !value || !category) {
-        return
-      }
+    // TRATATIVA DAS INFORMAÇÕES DO ARQUIVO
+    const categoriesRepository = getRepository(Category);
 
-      transactions.push(line)
+    // Eliminar categorias repetidas no arquivo
+    const setCategories = Array.from(new Set(categories))
 
-    })
-
-    await new Promise(resolve => {
-      parseCSV.on('end', resolve)
-    })
+    //Veriricar se as categorias existem
+    const verifyIfCategoriesExist = await categoriesRepository.find({
+      where: { title: In(setCategories) }
+    });
 
 
+    const titleExist = verifyIfCategoriesExist.map(
+      (categoryTitle: Category) => categoryTitle.title);
+    const addCategoriesTitles = setCategories.filter(
+      category => !titleExist.includes(category),
+    );
+    const newCategories = categoriesRepository.create(
+      addCategoriesTitles.map(title => ({
+        title,
+      })),
+    );
+    await categoriesRepository.save(newCategories);
 
-    return transactions
+    const allCategories = [...verifyIfCategoriesExist, ...newCategories];
+
+    //TRANSACTIONS
+    const transactionsRepository = getCustomRepository(TransactionsRepository);
+
+    //CRIAR TRANSAÇÃO
+    const createTransactions = transactionsRepository.create(
+      transactions.map(transaction => ({
+        title: transaction.title,
+        type: transaction.type,
+        value: transaction.value,
+        category: allCategories.find(
+          category => category.title === transaction.category,
+        ),
+      })),
+    );
+    await transactionsRepository.save(createTransactions);
+    await fs.promises.unlink(filePath);
+    return createTransactions;
   }
 }
 
