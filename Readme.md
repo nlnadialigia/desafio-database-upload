@@ -166,6 +166,7 @@ Para esse desafio, temos os seguintes testes:
 - [Eslint](https://eslint.org/)
 - [Prettier](https://prettier.io/)
 - [Uuid](https://www.npmjs.com/package/uuid)
+- [Postgres](https://www.postgresql.org/)
 - [Typeorm](https://typeorm.io)
 - [Multer](https://www.npmjs.com/package/multer)
 - [Csv-parse](https://www.npmjs.com/package/csv-parse)
