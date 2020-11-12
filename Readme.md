@@ -170,6 +170,7 @@ Para esse desafio, temos os seguintes testes:
 - [Typeorm](https://typeorm.io)
 - [Multer](https://www.npmjs.com/package/multer)
 - [Csv-parse](https://www.npmjs.com/package/csv-parse)
+- [Cors](https://www.npmjs.com/package/cors)
 
 
 
